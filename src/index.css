@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ekk-bg: #f5f9ff;
+  --ekk-sidebar: #081028;
+  --ekk-sidebar-muted: #122452;
+  --ekk-primary: #0057ff;
+  --ekk-primary-strong: #003a9b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(0, 87, 255, 0.12), transparent 35%),
+    radial-gradient(circle at 90% 0%, rgba(0, 58, 155, 0.12), transparent 40%),
+    var(--ekk-bg);
+  color: #081028;
+}
+
+#root {
+  min-height: 100vh;
+}
