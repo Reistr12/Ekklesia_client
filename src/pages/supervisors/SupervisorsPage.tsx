@@ -12,6 +12,10 @@ import { createSupervisor, getSupervisorsData } from '../../services/api/supervi
 import type { CreateSupervisorPayload, SupervisorsData } from '../../services/api/supervisors/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
+import {
+  type SupervisorValidationErrors,
+  validateSupervisorForm,
+} from './validations/validation'
 
 const initialForm: CreateSupervisorPayload = {
   name: '',
@@ -26,6 +30,7 @@ export function SupervisorsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form, setForm] = useState<CreateSupervisorPayload>(initialForm)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<SupervisorValidationErrors>({})
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<SupervisorsData>({
@@ -50,6 +55,12 @@ export function SupervisorsPage() {
   const supervisors = useMemo(() => data?.supervisors ?? [], [data])
 
   const handleSubmit = async () => {
+    const formErrors = validateSupervisorForm(form)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
+    }
+
     if (form.role === 'ADMIN' && !canCreateAdmin) {
       setSubmitError({
         message: 'No momento, o backend não permite criação de administrador por esta tela.',
@@ -110,6 +121,7 @@ export function SupervisorsPage() {
           actionIcon={<Plus size={16} />}
           onAction={() => {
             setSubmitError(null)
+            setValidationErrors({})
             setForm(initialForm)
             setIsModalOpen(true)
           }}
@@ -139,6 +151,7 @@ export function SupervisorsPage() {
         description="Preencha os dados para adicionar um administrador ou supervisor."
         onClose={() => {
           setSubmitError(null)
+          setValidationErrors({})
           setForm(initialForm)
           setIsModalOpen(false)
         }}
@@ -155,10 +168,14 @@ export function SupervisorsPage() {
             <input
               id="supervisor-name"
               value={form.name}
-              onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setForm((state) => ({ ...state, name: event.target.value }))
+                setValidationErrors((current) => ({ ...current, name: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.name ? 'border-rose-400' : 'border-slate-200'}`}
               required
             />
+            {validationErrors.name ? <p className="text-xs text-rose-600">{validationErrors.name}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -167,10 +184,14 @@ export function SupervisorsPage() {
               id="supervisor-email"
               type="email"
               value={form.email}
-              onChange={(event) => setForm((state) => ({ ...state, email: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setForm((state) => ({ ...state, email: event.target.value }))
+                setValidationErrors((current) => ({ ...current, email: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.email ? 'border-rose-400' : 'border-slate-200'}`}
               required
             />
+            {validationErrors.email ? <p className="text-xs text-rose-600">{validationErrors.email}</p> : null}
           </div>
 
           <div className="space-y-1">
@@ -178,10 +199,14 @@ export function SupervisorsPage() {
             <input
               id="supervisor-phone"
               value={form.phone}
-              onChange={(event) => setForm((state) => ({ ...state, phone: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setForm((state) => ({ ...state, phone: event.target.value }))
+                setValidationErrors((current) => ({ ...current, phone: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}
               required
             />
+            {validationErrors.phone ? <p className="text-xs text-rose-600">{validationErrors.phone}</p> : null}
           </div>
 
           <div className="space-y-1">
@@ -190,10 +215,14 @@ export function SupervisorsPage() {
               id="supervisor-password"
               type="password"
               value={form.password}
-              onChange={(event) => setForm((state) => ({ ...state, password: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setForm((state) => ({ ...state, password: event.target.value }))
+                setValidationErrors((current) => ({ ...current, password: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.password ? 'border-rose-400' : 'border-slate-200'}`}
               required
             />
+            {validationErrors.password ? <p className="text-xs text-rose-600">{validationErrors.password}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -202,16 +231,20 @@ export function SupervisorsPage() {
               id="person-role"
               value={form.role}
               onChange={(event) =>
-                setForm((state) => ({
-                  ...state,
-                  role: event.target.value as CreateSupervisorPayload['role'],
-                }))
+                {
+                  setForm((state) => ({
+                    ...state,
+                    role: event.target.value as CreateSupervisorPayload['role'],
+                  }))
+                  setValidationErrors((current) => ({ ...current, role: undefined }))
+                }
               }
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.role ? 'border-rose-400' : 'border-slate-200'}`}
             >
               <option value="SUPERVISOR">Supervisor</option>
               <option value="ADMIN" disabled={!canCreateAdmin}>Administrador (indisponível)</option>
             </select>
+            {validationErrors.role ? <p className="text-xs text-rose-600">{validationErrors.role}</p> : null}
             <p className="text-xs text-slate-500">
               Observação: no backend atual, o endpoint de criação bloqueia perfil ADMIN por esta rota.
             </p>

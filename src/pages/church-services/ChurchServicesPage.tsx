@@ -24,6 +24,10 @@ import type {
 } from '../../services/api/church-services/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { isChurchAdmin } from '../../utils/auth'
+import {
+  type ChurchServiceValidationErrors,
+  validateChurchServiceForm,
+} from './validations/validation'
 
 type ModalMode = 'create' | 'view' | 'edit'
 const PAGE_SIZE = 10
@@ -54,6 +58,7 @@ export function ChurchServicesPage() {
   const [endsAt, setEndsAt] = useState(defaultForm.endsAt)
   const [streamUrl, setStreamUrl] = useState(defaultForm.streamUrl ?? '')
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<ChurchServiceValidationErrors>({})
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery<ChurchServicesData>({ queryKey: ['cultos'], queryFn: getChurchServicesData })
@@ -87,6 +92,7 @@ export function ChurchServicesPage() {
     setStartsAt(defaultForm.startsAt)
     setEndsAt(defaultForm.endsAt)
     setStreamUrl(defaultForm.streamUrl ?? '')
+    setValidationErrors({})
   }
 
   const fillFormFromService = (service: ChurchService) => {
@@ -236,6 +242,12 @@ export function ChurchServicesPage() {
       return
     }
 
+    const formErrors = validateChurchServiceForm(payload)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
+    }
+
     try {
       if (modalMode === 'edit' && selectedService) {
         await updateChurchServiceMutation.mutateAsync({ id: selectedService.id, payload })
@@ -347,12 +359,28 @@ export function ChurchServicesPage() {
           startsAt={startsAt}
           endsAt={endsAt}
           readOnly={modalMode === 'view'}
-          onTitleChange={setServiceTitle}
-          onDescriptionChange={setServiceDescription}
-          onDayChange={setServiceDay}
+          onTitleChange={(value) => {
+            setServiceTitle(value)
+            setValidationErrors((current) => ({ ...current, title: undefined }))
+          }}
+          onDescriptionChange={(value) => {
+            setServiceDescription(value)
+            setValidationErrors((current) => ({ ...current, description: undefined }))
+          }}
+          onDayChange={(value) => {
+            setServiceDay(value)
+            setValidationErrors((current) => ({ ...current, day: undefined }))
+          }}
           onStreamUrlChange={setStreamUrl}
-          onStartsAtChange={setStartsAt}
-          onEndsAtChange={setEndsAt}
+          onStartsAtChange={(value) => {
+            setStartsAt(value)
+            setValidationErrors((current) => ({ ...current, startsAt: undefined }))
+          }}
+          onEndsAtChange={(value) => {
+            setEndsAt(value)
+            setValidationErrors((current) => ({ ...current, endsAt: undefined }))
+          }}
+          errors={validationErrors}
         />
       </CreateUpdateModal>
 

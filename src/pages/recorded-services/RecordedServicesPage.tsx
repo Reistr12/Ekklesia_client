@@ -24,6 +24,10 @@ import type {
 } from '../../services/api/recorded-services/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
+import {
+  type RecordedServiceValidationErrors,
+  validateRecordedServiceForm,
+} from './validations/validation'
 
 type ModalMode = 'create' | 'view' | 'edit'
 
@@ -50,6 +54,7 @@ export function RecordedServicesPage() {
   const [notes, setNotes] = useState(defaultForm.notes ?? '')
   const [date, setDate] = useState(defaultForm.date)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<RecordedServiceValidationErrors>({})
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<RecordedServicesData>({
@@ -84,6 +89,7 @@ export function RecordedServicesPage() {
     setTopic(defaultForm.topic)
     setNotes(defaultForm.notes ?? '')
     setDate(defaultForm.date)
+    setValidationErrors({})
   }
 
   const fillFormFromRecord = (record: RecordedService) => {
@@ -194,6 +200,12 @@ export function RecordedServicesPage() {
       topic,
       notes,
       date: date.includes('T') ? date : `${date}T00:00:00.000Z`,
+    }
+
+    const formErrors = validateRecordedServiceForm(payload)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
     }
 
     try {
@@ -362,11 +374,15 @@ export function RecordedServicesPage() {
             <input
               id="record-preacher"
               value={preacher}
-              onChange={(event) => setPreacher(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setPreacher(event.target.value)
+                setValidationErrors((current) => ({ ...current, preacher: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.preacher ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.preacher ? <p className="text-xs text-rose-600">{validationErrors.preacher}</p> : null}
           </div>
 
           <div className="space-y-1">
@@ -375,11 +391,15 @@ export function RecordedServicesPage() {
               id="record-date"
               type="date"
               value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setDate(event.target.value)
+                setValidationErrors((current) => ({ ...current, date: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.date ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.date ? <p className="text-xs text-rose-600">{validationErrors.date}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -387,11 +407,15 @@ export function RecordedServicesPage() {
             <input
               id="record-topic"
               value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setTopic(event.target.value)
+                setValidationErrors((current) => ({ ...current, topic: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.topic ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.topic ? <p className="text-xs text-rose-600">{validationErrors.topic}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">

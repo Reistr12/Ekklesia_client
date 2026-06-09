@@ -15,6 +15,7 @@ import { createPrayer, deletePrayer, getPrayerData, updatePrayer } from '../../s
 import type { CreatePrayerPayload, PrayerData, PrayerEntry } from '../../services/api/prayer/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
+import { type PrayerValidationErrors, validatePrayerForm } from './validations/validation'
 
 type ModalMode = 'create' | 'view' | 'edit'
 
@@ -37,6 +38,7 @@ export function PrayerPage() {
   const [name, setName] = useState(defaultForm.name)
   const [request, setRequest] = useState(defaultForm.request)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<PrayerValidationErrors>({})
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<PrayerData>({ queryKey: ['oracao'], queryFn: getPrayerData })
@@ -66,6 +68,7 @@ export function PrayerPage() {
   const resetForm = () => {
     setName(defaultForm.name)
     setRequest(defaultForm.request)
+    setValidationErrors({})
   }
 
   const fillFormFromPrayer = (prayer: PrayerEntry) => {
@@ -172,6 +175,12 @@ export function PrayerPage() {
     const payload: CreatePrayerPayload = {
       name,
       request,
+    }
+
+    const formErrors = validatePrayerForm(payload)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
     }
 
     try {
@@ -334,11 +343,15 @@ export function PrayerPage() {
             <input
               id="prayer-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setName(event.target.value)
+                setValidationErrors((current) => ({ ...current, name: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.name ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.name ? <p className="text-xs text-rose-600">{validationErrors.name}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -346,11 +359,15 @@ export function PrayerPage() {
             <textarea
               id="prayer-request"
               value={request}
-              onChange={(event) => setRequest(event.target.value)}
-              className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setRequest(event.target.value)
+                setValidationErrors((current) => ({ ...current, request: undefined }))
+              }}
+              className={`min-h-24 w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.request ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.request ? <p className="text-xs text-rose-600">{validationErrors.request}</p> : null}
           </div>
         </div>
       </CreateUpdateModal>

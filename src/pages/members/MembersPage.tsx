@@ -15,6 +15,7 @@ import { createMember, deleteMember, getMembersData, updateMember } from '../../
 import type { CreateMemberPayload, Member, MembersData } from '../../services/api/members/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
+import { type MemberValidationErrors, validateMemberForm } from './validations/validation'
 
 type ModalMode = 'create' | 'view' | 'edit'
 
@@ -39,6 +40,7 @@ export function MembersPage() {
   const [phone, setPhone] = useState(defaultForm.phone)
   const [dateOfBirth, setDateOfBirth] = useState(defaultForm.dateOfBirth)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<MemberValidationErrors>({})
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<MembersData>({ queryKey: ['membros'], queryFn: getMembersData })
@@ -69,6 +71,7 @@ export function MembersPage() {
     setName(defaultForm.name)
     setPhone(defaultForm.phone)
     setDateOfBirth(defaultForm.dateOfBirth)
+    setValidationErrors({})
   }
 
   const fillFormFromMember = (member: Member) => {
@@ -189,6 +192,12 @@ export function MembersPage() {
       name,
       phone,
       dateOfBirth,
+    }
+
+    const formErrors = validateMemberForm(payload)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
     }
 
     try {
@@ -351,11 +360,15 @@ export function MembersPage() {
             <input
               id="member-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setName(event.target.value)
+                setValidationErrors((current) => ({ ...current, name: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.name ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.name ? <p className="text-xs text-rose-600">{validationErrors.name}</p> : null}
           </div>
 
           <div className="space-y-1">
@@ -363,11 +376,15 @@ export function MembersPage() {
             <input
               id="member-phone"
               value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setPhone(event.target.value)
+                setValidationErrors((current) => ({ ...current, phone: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.phone ? <p className="text-xs text-rose-600">{validationErrors.phone}</p> : null}
           </div>
 
           <div className="space-y-1">
@@ -376,11 +393,15 @@ export function MembersPage() {
               id="member-birth"
               type="date"
               value={dateOfBirth}
-              onChange={(event) => setDateOfBirth(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setDateOfBirth(event.target.value)
+                setValidationErrors((current) => ({ ...current, dateOfBirth: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.dateOfBirth ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.dateOfBirth ? <p className="text-xs text-rose-600">{validationErrors.dateOfBirth}</p> : null}
           </div>
         </div>
       </CreateUpdateModal>

@@ -67,7 +67,7 @@ export function CreateUpdateModal({
         aria-modal="true"
         aria-labelledby="create-update-modal-title"
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <header className="border-b border-slate-200 px-6 py-5">
             <h2 id="create-update-modal-title" className="text-xl font-semibold text-slate-900">
               {title}

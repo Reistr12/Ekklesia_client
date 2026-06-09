@@ -15,6 +15,10 @@ import { createAnnouncement, deleteAnnouncement, getAnnouncementsData, updateAnn
 import type { Announcement, AnnouncementsData, CreateAnnouncementPayload } from '../../services/api/announcements/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
+import {
+  type AnnouncementValidationErrors,
+  validateAnnouncementForm,
+} from './validations/validation'
 
 type ModalMode = 'create' | 'view' | 'edit'
 
@@ -39,6 +43,7 @@ export function AnnouncementsPage() {
   const [content, setContent] = useState(defaultForm.content)
   const [date, setDate] = useState(defaultForm.date)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
+  const [validationErrors, setValidationErrors] = useState<AnnouncementValidationErrors>({})
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<AnnouncementsData>({ queryKey: ['comunicados'], queryFn: getAnnouncementsData })
@@ -69,6 +74,7 @@ export function AnnouncementsPage() {
     setTitle(defaultForm.title)
     setContent(defaultForm.content)
     setDate(defaultForm.date)
+    setValidationErrors({})
   }
 
   const fillFormFromAnnouncement = (announcement: Announcement) => {
@@ -177,6 +183,12 @@ export function AnnouncementsPage() {
       title,
       content,
       date: date.includes('T') ? date : `${date}T00:00:00.000Z`,
+    }
+
+    const formErrors = validateAnnouncementForm(payload)
+    if (Object.keys(formErrors).length > 0) {
+      setValidationErrors(formErrors)
+      return
     }
 
     try {
@@ -340,11 +352,15 @@ export function AnnouncementsPage() {
             <input
               id="announcement-title"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setTitle(event.target.value)
+                setValidationErrors((current) => ({ ...current, title: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.title ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.title ? <p className="text-xs text-rose-600">{validationErrors.title}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -352,11 +368,15 @@ export function AnnouncementsPage() {
             <textarea
               id="announcement-content"
               value={content}
-              onChange={(event) => setContent(event.target.value)}
-              className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setContent(event.target.value)
+                setValidationErrors((current) => ({ ...current, content: undefined }))
+              }}
+              className={`min-h-24 w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.content ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.content ? <p className="text-xs text-rose-600">{validationErrors.content}</p> : null}
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -365,11 +385,15 @@ export function AnnouncementsPage() {
               id="announcement-date"
               type="date"
               value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+              onChange={(event) => {
+                setDate(event.target.value)
+                setValidationErrors((current) => ({ ...current, date: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.date ? 'border-rose-400' : 'border-slate-200'}`}
               required
               disabled={modalMode === 'view'}
             />
+            {validationErrors.date ? <p className="text-xs text-rose-600">{validationErrors.date}</p> : null}
           </div>
         </div>
       </CreateUpdateModal>

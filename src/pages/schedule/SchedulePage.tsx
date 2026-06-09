@@ -10,6 +10,7 @@ import { StatCard } from '../../components/ui/StatCard'
 import { getScheduleData } from '../../services/api/schedule'
 import type { ScheduleData } from '../../services/api/schedule/types'
 import { isChurchAdmin } from '../../utils/auth'
+import { type ScheduleValidationErrors, validateScheduleForm } from './validations/validation'
 
 export function SchedulePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -18,6 +19,7 @@ export function SchedulePage() {
   const [time, setTime] = useState('')
   const [ministry, setMinistry] = useState('')
   const [priority, setPriority] = useState('')
+  const [validationErrors, setValidationErrors] = useState<ScheduleValidationErrors>({})
 
   const { data, isLoading } = useQuery<ScheduleData>({ queryKey: ['agenda'], queryFn: getScheduleData })
   const canManage = isChurchAdmin()
@@ -50,7 +52,10 @@ export function SchedulePage() {
           {canManage ? (
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setValidationErrors({})
+                setIsModalOpen(true)
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
             >
               <Plus size={16} />
@@ -74,30 +79,47 @@ export function SchedulePage() {
         isOpen={isModalOpen}
         title="Novo compromisso"
         description="Preencha os dados do compromisso da agenda."
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={async () => setIsModalOpen(false)}
+        onClose={() => {
+          setValidationErrors({})
+          setIsModalOpen(false)
+        }}
+        onSubmit={async () => {
+          const formErrors = validateScheduleForm({ title, date, time, ministry, priority })
+          if (Object.keys(formErrors).length > 0) {
+            setValidationErrors(formErrors)
+            return
+          }
+
+          setValidationErrors({})
+          setIsModalOpen(false)
+        }}
         submitLabel="Criar compromisso"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1 sm:col-span-2">
             <label htmlFor="schedule-title" className="text-sm font-medium text-slate-700">Título</label>
-            <input id="schedule-title" value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600" required />
+            <input id="schedule-title" value={title} onChange={(event) => { setTitle(event.target.value); setValidationErrors((current) => ({ ...current, title: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.title ? 'border-rose-400' : 'border-slate-200'}`} required />
+            {validationErrors.title ? <p className="text-xs text-rose-600">{validationErrors.title}</p> : null}
           </div>
           <div className="space-y-1">
             <label htmlFor="schedule-date" className="text-sm font-medium text-slate-700">Data</label>
-            <input id="schedule-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600" required />
+            <input id="schedule-date" type="date" value={date} onChange={(event) => { setDate(event.target.value); setValidationErrors((current) => ({ ...current, date: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.date ? 'border-rose-400' : 'border-slate-200'}`} required />
+            {validationErrors.date ? <p className="text-xs text-rose-600">{validationErrors.date}</p> : null}
           </div>
           <div className="space-y-1">
             <label htmlFor="schedule-time" className="text-sm font-medium text-slate-700">Hora</label>
-            <input id="schedule-time" type="time" value={time} onChange={(event) => setTime(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600" required />
+            <input id="schedule-time" type="time" value={time} onChange={(event) => { setTime(event.target.value); setValidationErrors((current) => ({ ...current, time: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.time ? 'border-rose-400' : 'border-slate-200'}`} required />
+            {validationErrors.time ? <p className="text-xs text-rose-600">{validationErrors.time}</p> : null}
           </div>
           <div className="space-y-1">
             <label htmlFor="schedule-ministry" className="text-sm font-medium text-slate-700">Ministério</label>
-            <input id="schedule-ministry" value={ministry} onChange={(event) => setMinistry(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600" required />
+            <input id="schedule-ministry" value={ministry} onChange={(event) => { setMinistry(event.target.value); setValidationErrors((current) => ({ ...current, ministry: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.ministry ? 'border-rose-400' : 'border-slate-200'}`} required />
+            {validationErrors.ministry ? <p className="text-xs text-rose-600">{validationErrors.ministry}</p> : null}
           </div>
           <div className="space-y-1">
             <label htmlFor="schedule-priority" className="text-sm font-medium text-slate-700">Prioridade</label>
-            <input id="schedule-priority" value={priority} onChange={(event) => setPriority(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600" required />
+            <input id="schedule-priority" value={priority} onChange={(event) => { setPriority(event.target.value); setValidationErrors((current) => ({ ...current, priority: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.priority ? 'border-rose-400' : 'border-slate-200'}`} required />
+            {validationErrors.priority ? <p className="text-xs text-rose-600">{validationErrors.priority}</p> : null}
           </div>
         </div>
       </CreateUpdateModal>

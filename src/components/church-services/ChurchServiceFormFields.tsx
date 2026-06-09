@@ -14,6 +14,7 @@ type ChurchServiceFormFieldsProps = {
   onStreamUrlChange: (value: string) => void
   onStartsAtChange: (value: string) => void
   onEndsAtChange: (value: string) => void
+  errors?: Partial<Record<'title' | 'description' | 'day' | 'startsAt' | 'endsAt', string>>
 }
 
 export function ChurchServiceFormFields({
@@ -30,6 +31,7 @@ export function ChurchServiceFormFields({
   onStreamUrlChange,
   onStartsAtChange,
   onEndsAtChange,
+  errors,
 }: ChurchServiceFormFieldsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -42,11 +44,12 @@ export function ChurchServiceFormFields({
           type="text"
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${errors?.title ? 'border-rose-400' : 'border-slate-200'}`}
           placeholder="Culto Domingo Manhã"
           required
           disabled={readOnly}
         />
+        {errors?.title ? <p className="text-xs text-rose-600">{errors.title}</p> : null}
       </div>
 
       <div className="space-y-1 sm:col-span-2">
@@ -57,11 +60,12 @@ export function ChurchServiceFormFields({
           id="church-service-description"
           value={description}
           onChange={(event) => onDescriptionChange(event.target.value)}
-          className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+          className={`min-h-24 w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${errors?.description ? 'border-rose-400' : 'border-slate-200'}`}
           placeholder="Descrição resumida do culto"
           required
           disabled={readOnly}
         />
+        {errors?.description ? <p className="text-xs text-rose-600">{errors.description}</p> : null}
       </div>
 
       <div className="space-y-1">
@@ -72,7 +76,7 @@ export function ChurchServiceFormFields({
           id="church-service-day"
           value={day}
           onChange={(event) => onDayChange(event.target.value as CreateChurchServicePayload['day'])}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${errors?.day ? 'border-rose-400' : 'border-slate-200'}`}
           disabled={readOnly}
         >
           <option value="SUNDAY">Domingo</option>
@@ -83,6 +87,7 @@ export function ChurchServiceFormFields({
           <option value="FRIDAY">Sexta</option>
           <option value="SATURDAY">Sábado</option>
         </select>
+        {errors?.day ? <p className="text-xs text-rose-600">{errors.day}</p> : null}
       </div>
 
       <div className="space-y-1">
@@ -109,10 +114,11 @@ export function ChurchServiceFormFields({
           type="time"
           value={startsAt}
           onChange={(event) => onStartsAtChange(event.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${errors?.startsAt ? 'border-rose-400' : 'border-slate-200'}`}
           required
           disabled={readOnly}
         />
+        {errors?.startsAt ? <p className="text-xs text-rose-600">{errors.startsAt}</p> : null}
       </div>
 
       <div className="space-y-1">
@@ -124,10 +130,11 @@ export function ChurchServiceFormFields({
           type="time"
           value={endsAt}
           onChange={(event) => onEndsAtChange(event.target.value)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${errors?.endsAt ? 'border-rose-400' : 'border-slate-200'}`}
           required
           disabled={readOnly}
         />
+        {errors?.endsAt ? <p className="text-xs text-rose-600">{errors.endsAt}</p> : null}
       </div>
     </div>
   )
