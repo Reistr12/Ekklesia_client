@@ -1,4 +1,6 @@
 const runtimeEnv = import.meta.env as Record<string, string | boolean | undefined>
+const mode = (runtimeEnv.MODE as string | undefined) ?? 'development'
+const isDevelopment = mode === 'development'
 
 const readString = (defaultValue: string, ...keys: string[]) => {
   for (const key of keys) {
@@ -30,5 +32,13 @@ const readBoolean = (defaultValue: boolean, ...keys: string[]) => {
 
 export const env = {
   apiBaseUrl: readString('', 'VITE_API_URL', 'VITE_API_MODULE_BASE_URL'),
-  useMock: readBoolean(true, 'VITE_REACT_USE_MOCKS', 'VITE_REACT_USE_MOCK', 'VITE_USE_MOCKS'),
+  useMock: readBoolean(false, 'VITE_REACT_USE_MOCKS', 'VITE_REACT_USE_MOCK', 'VITE_USE_MOCKS'),
+}
+
+if (!isDevelopment && env.apiBaseUrl.trim() === '') {
+  throw new Error('VITE_API_URL is required outside development.')
+}
+
+if (!isDevelopment && env.useMock) {
+  throw new Error('Mock mode is not allowed outside development.')
 }

@@ -48,6 +48,14 @@ export const getDashboardData = async (): Promise<DashboardData> => {
   const announcements = announcementsResult.status === 'fulfilled' ? toArray<ApiAnnouncement>(announcementsResult.value.data) : []
   const records = recordsResult.status === 'fulfilled' ? toArray<ApiRecord>(recordsResult.value.data) : []
 
+  const degradedSources = [
+    membersResult.status === 'rejected' ? 'membros' : null,
+    eventsResult.status === 'rejected' ? 'eventos' : null,
+    prayersResult.status === 'rejected' ? 'orações' : null,
+    announcementsResult.status === 'rejected' ? 'avisos' : null,
+    recordsResult.status === 'rejected' ? 'registros' : null,
+  ].filter((value): value is string => value !== null)
+
   const getMemberTimelineDate = (member: ApiMember) => {
     const reference = member.createdAt ?? member.updatedAt
     if (!reference) {
@@ -151,5 +159,7 @@ export const getDashboardData = async (): Promise<DashboardData> => {
       request: item.request,
     })),
     activities,
+    degraded: degradedSources.length > 0,
+    degradedSources,
   }
 }

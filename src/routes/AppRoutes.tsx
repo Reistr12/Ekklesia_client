@@ -1,18 +1,29 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { MainLayout } from '../components/layout/MainLayout'
-import { AuthPage } from '../pages/auth/AuthPage'
-import { SchedulePage } from '../pages/schedule/SchedulePage'
-import { AnnouncementsPage } from '../pages/announcements/AnnouncementsPage'
-import { SettingsPage } from '../pages/settings/SettingsPage'
-import { ChurchServicesPage } from '../pages/church-services/ChurchServicesPage'
-import { RecordedServicesPage } from '../pages/recorded-services/RecordedServicesPage'
-import { DashboardPage } from '../pages/dashboard/DashboardPage'
-import { EventsPage } from '../pages/events/EventsPage'
-import { MembersPage } from '../pages/members/MembersPage'
-import { PrayerPage } from '../pages/prayer/PrayerPage'
-import { SupervisorsPage } from '../pages/supervisors/SupervisorsPage'
+import { LoadingCard } from '../components/feedback/LoadingCard'
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
+
+const AuthPage = lazy(() => import('../pages/auth/AuthPage').then((module) => ({ default: module.AuthPage })))
+const SchedulePage = lazy(() => import('../pages/schedule/SchedulePage').then((module) => ({ default: module.SchedulePage })))
+const AnnouncementsPage = lazy(() => import('../pages/announcements/AnnouncementsPage').then((module) => ({ default: module.AnnouncementsPage })))
+const SettingsPage = lazy(() => import('../pages/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const ChurchServicesPage = lazy(() => import('../pages/church-services/ChurchServicesPage').then((module) => ({ default: module.ChurchServicesPage })))
+const RecordedServicesPage = lazy(() => import('../pages/recorded-services/RecordedServicesPage').then((module) => ({ default: module.RecordedServicesPage })))
+const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const EventsPage = lazy(() => import('../pages/events/EventsPage').then((module) => ({ default: module.EventsPage })))
+const MembersPage = lazy(() => import('../pages/members/MembersPage').then((module) => ({ default: module.MembersPage })))
+const PrayerPage = lazy(() => import('../pages/prayer/PrayerPage').then((module) => ({ default: module.PrayerPage })))
+const SupervisorsPage = lazy(() => import('../pages/supervisors/SupervisorsPage').then((module) => ({ default: module.SupervisorsPage })))
+
+const RouteFallback = () => (
+  <div className="grid gap-4 md:grid-cols-3">
+    {Array.from({ length: 3 }).map((_, idx) => (
+      <LoadingCard key={idx} />
+    ))}
+  </div>
+)
 
 export function AppRoutes() {
   return (
@@ -22,7 +33,9 @@ export function AppRoutes() {
           path="/auth"
           element={(
             <PublicOnlyRoute>
-              <AuthPage />
+              <Suspense fallback={<RouteFallback />}>
+                <AuthPage />
+              </Suspense>
             </PublicOnlyRoute>
           )}
         />
@@ -34,16 +47,16 @@ export function AppRoutes() {
             </ProtectedRoute>
           )}
         >
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/cultos" element={<ChurchServicesPage />} />
-          <Route path="/eventos" element={<EventsPage />} />
-          <Route path="/agenda" element={<SchedulePage />} />
-          <Route path="/cultos-registrados" element={<RecordedServicesPage />} />
-          <Route path="/membros" element={<MembersPage />} />
-          <Route path="/pessoas" element={<SupervisorsPage />} />
-          <Route path="/avisos" element={<AnnouncementsPage />} />
-          <Route path="/oracao" element={<PrayerPage />} />
-          <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/" element={<Suspense fallback={<RouteFallback />}><DashboardPage /></Suspense>} />
+          <Route path="/cultos" element={<Suspense fallback={<RouteFallback />}><ChurchServicesPage /></Suspense>} />
+          <Route path="/eventos" element={<Suspense fallback={<RouteFallback />}><EventsPage /></Suspense>} />
+          <Route path="/agenda" element={<Suspense fallback={<RouteFallback />}><SchedulePage /></Suspense>} />
+          <Route path="/cultos-registrados" element={<Suspense fallback={<RouteFallback />}><RecordedServicesPage /></Suspense>} />
+          <Route path="/membros" element={<Suspense fallback={<RouteFallback />}><MembersPage /></Suspense>} />
+          <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><SupervisorsPage /></Suspense>} />
+          <Route path="/avisos" element={<Suspense fallback={<RouteFallback />}><AnnouncementsPage /></Suspense>} />
+          <Route path="/oracao" element={<Suspense fallback={<RouteFallback />}><PrayerPage /></Suspense>} />
+          <Route path="/configuracoes" element={<Suspense fallback={<RouteFallback />}><SettingsPage /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

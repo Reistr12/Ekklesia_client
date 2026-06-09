@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { ErrorAlert } from '../../components/feedback/ErrorAlert'
@@ -60,21 +60,16 @@ export function RecordedServicesPage() {
 
   const totalItems = data?.recordedServices.length ?? 0
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [currentPage, totalPages])
+  const safeCurrentPage = Math.min(currentPage, totalPages)
 
   const paginatedRecords = useMemo(() => {
     if (!data) {
       return []
     }
 
-    const start = (currentPage - 1) * PAGE_SIZE
+    const start = (safeCurrentPage - 1) * PAGE_SIZE
     return data.recordedServices.slice(start, start + PAGE_SIZE)
-  }, [currentPage, data])
+  }, [safeCurrentPage, data])
 
   const optionsTargetRecord = useMemo(() => {
     if (!optionsMenu || !data) {
@@ -333,13 +328,13 @@ export function RecordedServicesPage() {
         </FloatingActionsMenu>
 
         <PaginationBar
-          currentPage={currentPage}
+          currentPage={safeCurrentPage}
           totalPages={totalPages}
           pageSize={PAGE_SIZE}
           totalItems={totalItems}
           currentItems={paginatedRecords.length}
-          onPrev={() => setCurrentPage((page) => Math.max(1, page - 1))}
-          onNext={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+          onPrev={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+          onNext={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
         />
       </section>
 

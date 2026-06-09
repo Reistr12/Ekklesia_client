@@ -38,6 +38,12 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      {data.degraded ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Alguns dados de configuração não puderam ser carregados: {data.degradedSources.join(', ')}.
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-3">
         {data.metrics.map((metric) => (
           <StatCard key={metric.label} label={metric.label} value={metric.value} trend={metric.trend} />

@@ -5,6 +5,7 @@ type AuthTokenPayload = {
   email?: string
   role?: string
   churchId?: string
+  exp?: number
 }
 
 const parseJwtPayload = (token: string): AuthTokenPayload | null => {
@@ -38,7 +39,25 @@ export const clearAccessToken = () => {
 }
 
 export const isAuthenticated = () => {
-  return Boolean(getAccessToken())
+  const token = getAccessToken()
+  if (!token) {
+    return false
+  }
+
+  const payload = parseJwtPayload(token)
+  if (!payload?.exp) {
+    return false
+  }
+
+  const nowInSeconds = Math.floor(Date.now() / 1000)
+  const isExpired = payload.exp <= nowInSeconds
+
+  if (isExpired) {
+    clearAccessToken()
+    return false
+  }
+
+  return true
 }
 
 export const getAuthContext = () => {

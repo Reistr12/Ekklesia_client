@@ -13,4 +13,6 @@ export type SettingItem = {
 export type SettingsData = {
   metrics: SettingMetric[]
   settings: SettingItem[]
+  degraded: boolean
+  degradedSources: string[]
 }

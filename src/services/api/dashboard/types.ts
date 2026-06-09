@@ -42,4 +42,6 @@ export type DashboardData = {
   upcomingEvents: UpcomingEvent[]
   prayerRequests: PrayerRequest[]
   activities: Activity[]
+  degraded: boolean
+  degradedSources: string[]
 }

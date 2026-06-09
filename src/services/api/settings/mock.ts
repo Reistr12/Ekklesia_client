@@ -12,5 +12,7 @@ export const getSettingsData = async (): Promise<SettingsData> => {
       { module: 'Permissões de equipe', status: 'Ativo', updatedAt: '21/05/2026' },
       { module: 'Branding da igreja', status: 'Em revisão', updatedAt: '18/05/2026' },
     ],
+    degraded: false,
+    degradedSources: [],
   }
 }
