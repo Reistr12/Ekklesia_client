@@ -31,7 +31,6 @@ const readBoolean = (defaultValue: boolean, ...keys: string[]) => {
 export const env = {
   applicationEnv: readString('development', 'VITE_APPLICATION_ENV', 'APPLICATION_ENV', 'NODE_ENV'),
   apiBaseUrl: readString('', 'VITE_API_URL', 'VITE_API_MODULE_BASE_URL'),
-  frontendUrl: readString('http://localhost:5173', 'VITE_FRONTEND_URL', 'VITE_APP_URL'),
   useMock: readBoolean(false, 'VITE_REACT_USE_MOCKS', 'VITE_REACT_USE_MOCK', 'VITE_USE_MOCKS'),
 }
 

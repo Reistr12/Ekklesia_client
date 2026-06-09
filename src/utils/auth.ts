@@ -1,4 +1,5 @@
 const ACCESS_TOKEN_KEY = 'ekklesia.access_token'
+const REFRESH_TOKEN_KEY = 'ekklesia.refresh_token'
 
 type AuthTokenPayload = {
   sub?: string
@@ -38,23 +39,41 @@ export const clearAccessToken = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
+export const getRefreshToken = () => {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export const setRefreshToken = (token: string) => {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+export const clearRefreshToken = () => {
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+export const clearAuthSession = () => {
+  clearAccessToken()
+  clearRefreshToken()
+}
+
 export const isAuthenticated = () => {
   const token = getAccessToken()
+  const refreshToken = getRefreshToken()
+
   if (!token) {
-    return false
+    return Boolean(refreshToken)
   }
 
   const payload = parseJwtPayload(token)
   if (!payload?.exp) {
-    return false
+    return Boolean(refreshToken)
   }
 
   const nowInSeconds = Math.floor(Date.now() / 1000)
   const isExpired = payload.exp <= nowInSeconds
 
   if (isExpired) {
-    clearAccessToken()
-    return false
+    return Boolean(refreshToken)
   }
 
   return true

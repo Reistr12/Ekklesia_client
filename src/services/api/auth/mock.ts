@@ -39,6 +39,7 @@ export const login = async (payload: LoginPayload): Promise<LoginResponse> => {
 
   return {
     accessToken: `${header}.${tokenPayload}.mock-signature`,
+    refreshToken: `mock-refresh-${user.email}`,
   }
 }
 

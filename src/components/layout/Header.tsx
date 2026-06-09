@@ -1,6 +1,6 @@
 import { Bell, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { clearAccessToken } from '../../utils/auth'
+import { clearAuthSession } from '../../utils/auth'
 
 type HeaderProps = {
   title: string
@@ -11,7 +11,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const navigate = useNavigate()
 
   const handleLogout = () => {
-    clearAccessToken()
+    clearAuthSession()
     navigate('/auth', { replace: true })
   }
 

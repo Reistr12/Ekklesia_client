@@ -5,6 +5,16 @@ export type LoginPayload = {
 
 export type LoginResponse = {
   accessToken: string
+  refreshToken?: string
+}
+
+export type RefreshPayload = {
+  refreshToken: string
+}
+
+export type RefreshResponse = {
+  accessToken: string
+  refreshToken?: string
 }
 
 export type RegisterPayload = {

@@ -5,7 +5,7 @@ import { ErrorAlert } from '../../components/feedback/ErrorAlert'
 import { login, register } from '../../services/api/auth'
 import type { LoginPayload, RegisterPayload } from '../../services/api/auth/types'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
-import { setAccessToken } from '../../utils/auth'
+import { clearRefreshToken, setAccessToken, setRefreshToken } from '../../utils/auth'
 
 type AuthMode = 'login' | 'register'
 
@@ -38,6 +38,11 @@ export function AuthPage() {
     mutationFn: login,
     onSuccess: (response) => {
       setAccessToken(response.accessToken)
+      if (response.refreshToken) {
+        setRefreshToken(response.refreshToken)
+      } else {
+        clearRefreshToken()
+      }
       navigate(fromPath, { replace: true })
     },
     onError: (error) => {
