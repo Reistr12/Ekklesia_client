@@ -4,7 +4,6 @@ export function validateScheduleForm(payload: {
   title: string
   date: string
   time: string
-  ministry: string
 }): ScheduleValidationErrors {
   const errors: ScheduleValidationErrors = {}
 
@@ -18,10 +17,6 @@ export function validateScheduleForm(payload: {
 
   if (payload.time.trim().length === 0) {
     errors.time = 'A hora é obrigatória.'
-  }
-
-  if (payload.ministry.trim().length === 0) {
-    errors.ministry = 'O ministério é obrigatório.'
   }
 
   return errors

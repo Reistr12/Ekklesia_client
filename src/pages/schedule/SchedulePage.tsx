@@ -18,7 +18,6 @@ export function SchedulePage() {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
-  const [ministry, setMinistry] = useState('')
   const [validationErrors, setValidationErrors] = useState<ScheduleValidationErrors>({})
   const location = useLocation()
   const isPastorAgenda = location.pathname === '/agenda/pastor'
@@ -98,7 +97,7 @@ export function SchedulePage() {
           setIsModalOpen(false)
         }}
         onSubmit={async () => {
-          const formErrors = validateScheduleForm({ title, date, time, ministry })
+          const formErrors = validateScheduleForm({ title, date, time })
           if (Object.keys(formErrors).length > 0) {
             setValidationErrors(formErrors)
             return
