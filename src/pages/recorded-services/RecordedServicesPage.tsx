@@ -11,6 +11,8 @@ import { FloatingActionsMenu } from '../../components/ui/FloatingActionsMenu'
 import { PaginationBar } from '../../components/ui/PaginationBar'
 import { SectionHeaderAction } from '../../components/ui/SectionHeaderAction'
 import { StatCard } from '../../components/ui/StatCard'
+import { getChurchServicesData } from '../../services/api/church-services'
+import type { ChurchServicesData } from '../../services/api/church-services/types'
 import {
   createRecordedService,
   deleteRecordedService,
@@ -32,8 +34,11 @@ import {
 type ModalMode = 'create' | 'view' | 'edit'
 
 const PAGE_SIZE = 10
+const RECORDED_SERVICES_QUERY_KEY = ['cultos-gravados'] as const
+const CHURCH_SERVICES_OPTIONS_QUERY_KEY = ['cultos-opcoes'] as const
 
 const defaultForm: CreateRecordedServicePayload = {
+  serviceId: '',
   preacher: '',
   topic: '',
   notes: '',
@@ -49,6 +54,7 @@ export function RecordedServicesPage() {
   const [optionsMenu, setOptionsMenu] = useState<{ id: string; top: number; left: number } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
+  const [serviceId, setServiceId] = useState(defaultForm.serviceId)
   const [preacher, setPreacher] = useState(defaultForm.preacher)
   const [topic, setTopic] = useState(defaultForm.topic)
   const [notes, setNotes] = useState(defaultForm.notes ?? '')
@@ -58,23 +64,36 @@ export function RecordedServicesPage() {
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<RecordedServicesData>({
-    queryKey: ['cultos-gravados'],
-    queryFn: getRecordedServicesData,
+    queryKey: [...RECORDED_SERVICES_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getRecordedServicesData({ page: currentPage, limit: PAGE_SIZE }),
+  })
+  const { data: churchServicesOptions } = useQuery<ChurchServicesData>({
+    queryKey: CHURCH_SERVICES_OPTIONS_QUERY_KEY,
+    queryFn: () => getChurchServicesData({ page: 1, limit: 100 }),
   })
   const canManage = hasAnyRole('ADMIN', 'SUPERVISOR', 'SUPERADMIN')
 
-  const totalItems = data?.recordedServices.length ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const buildOptimisticRecord = (payload: CreateRecordedServicePayload, id: string): RecordedService => {
+    const isoDate = payload.date.includes('T') ? payload.date : `${payload.date}T00:00:00.000Z`
+    const recordDate = new Date(isoDate)
 
-  const paginatedRecords = useMemo(() => {
-    if (!data) {
-      return []
+    return {
+      id,
+      serviceId: payload.serviceId,
+      date: Number.isNaN(recordDate.getTime()) ? '-' : recordDate.toLocaleDateString('pt-BR'),
+      isoDate,
+      theme: payload.topic,
+      preacher: payload.preacher,
+      attendance: 0,
+      visitors: 0,
+      notes: payload.notes,
     }
+  }
 
-    const start = (safeCurrentPage - 1) * PAGE_SIZE
-    return data.recordedServices.slice(start, start + PAGE_SIZE)
-  }, [safeCurrentPage, data])
+  const paginatedRecords = data?.recordedServices ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const optionsTargetRecord = useMemo(() => {
     if (!optionsMenu || !data) {
@@ -85,6 +104,7 @@ export function RecordedServicesPage() {
   }, [data, optionsMenu])
 
   const resetForm = () => {
+    setServiceId(defaultForm.serviceId)
     setPreacher(defaultForm.preacher)
     setTopic(defaultForm.topic)
     setNotes(defaultForm.notes ?? '')
@@ -93,6 +113,7 @@ export function RecordedServicesPage() {
   }
 
   const fillFormFromRecord = (record: RecordedService) => {
+    setServiceId(record.serviceId)
     setPreacher(record.preacher)
     setTopic(record.theme)
     setNotes(record.notes ?? '')
@@ -101,36 +122,111 @@ export function RecordedServicesPage() {
 
   const createMutation = useMutation({
     mutationFn: createRecordedService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos-gravados'] })
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticRecord(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY, {
+        ...previousData,
+        recordedServices: [optimisticItem, ...previousData.recordedServices],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(RECORDED_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedRecord(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CreateRecordedServicePayload }) => updateRecordedService(id, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos-gravados'] })
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY, {
+        ...previousData,
+        recordedServices: previousData.recordedServices.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                ...buildOptimisticRecord(payload, id),
+              }
+            : item,
+        ),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(RECORDED_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedRecord(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
     },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteRecordedService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos-gravados'] })
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<RecordedServicesData>(RECORDED_SERVICES_QUERY_KEY, {
+        ...previousData,
+        recordedServices: previousData.recordedServices.filter((item) => item.id !== id),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(RECORDED_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setRecordToDelete(null)
       setIsDeleteConfirmOpen(false)
       setOptionsMenu(null)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: RECORDED_SERVICES_QUERY_KEY })
     },
   })
 
@@ -196,6 +292,7 @@ export function RecordedServicesPage() {
     }
 
     const payload: CreateRecordedServicePayload = {
+      serviceId,
       preacher,
       topic,
       notes,
@@ -369,6 +466,29 @@ export function RecordedServicesPage() {
         {submitError ? <ErrorAlert error={submitError} /> : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1 sm:col-span-2">
+            <label htmlFor="record-service" className="text-sm font-medium text-slate-700">Culto</label>
+            <select
+              id="record-service"
+              value={serviceId}
+              onChange={(event) => {
+                setServiceId(event.target.value)
+                setValidationErrors((current) => ({ ...current, serviceId: undefined }))
+              }}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.serviceId ? 'border-rose-400' : 'border-slate-200'}`}
+              disabled={modalMode === 'view'}
+              required
+            >
+              <option value="">Selecione um culto</option>
+              {(churchServicesOptions?.churchServices ?? []).map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name} ({service.day} - {service.startsAt})
+                </option>
+              ))}
+            </select>
+            {validationErrors.serviceId ? <p className="text-xs text-rose-600">{validationErrors.serviceId}</p> : null}
+          </div>
+
           <div className="space-y-1">
             <label htmlFor="record-preacher" className="text-sm font-medium text-slate-700">Pregador</label>
             <input

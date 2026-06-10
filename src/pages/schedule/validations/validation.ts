@@ -1,11 +1,10 @@
-export type ScheduleValidationErrors = Partial<Record<'title' | 'date' | 'time' | 'ministry' | 'priority', string>>
+export type ScheduleValidationErrors = Partial<Record<'title' | 'date' | 'time' | 'ministry', string>>
 
 export function validateScheduleForm(payload: {
   title: string
   date: string
   time: string
   ministry: string
-  priority: string
 }): ScheduleValidationErrors {
   const errors: ScheduleValidationErrors = {}
 
@@ -23,10 +22,6 @@ export function validateScheduleForm(payload: {
 
   if (payload.ministry.trim().length === 0) {
     errors.ministry = 'O ministério é obrigatório.'
-  }
-
-  if (payload.priority.trim().length === 0) {
-    errors.priority = 'A prioridade é obrigatória.'
   }
 
   return errors

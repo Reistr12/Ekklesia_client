@@ -6,6 +6,7 @@ export type RecordedServiceMetric = {
 
 export type RecordedService = {
   id: string
+  serviceId: string
   date: string
   isoDate: string
   theme: string
@@ -18,10 +19,14 @@ export type RecordedService = {
 export type RecordedServicesData = {
   metrics: RecordedServiceMetric[]
   recordedServices: RecordedService[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateRecordedServicePayload = {
-  serviceId?: string
+  serviceId: string
   preacher: string
   topic: string
   bibleVerse?: string
@@ -31,7 +36,7 @@ export type CreateRecordedServicePayload = {
 
 export type CreateRecordedServiceResponse = {
   id: string
-  serviceId?: string
+  serviceId: string
   preacher: string
   topic: string
   bibleVerse?: string

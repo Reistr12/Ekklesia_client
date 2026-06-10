@@ -8,9 +8,9 @@ export const getScheduleData = async (): Promise<ScheduleData> => {
       { label: 'Pendências', value: '5', trend: '-2 desde ontem' },
     ],
     items: [
-      { title: 'Planejamento de culto', date: '25/05/2026', time: '19:30', ministry: 'Louvor', priority: 'Alta' },
-      { title: 'Reunião de recepção', date: '26/05/2026', time: '20:00', ministry: 'Boas-vindas', priority: 'Media' },
-      { title: 'Ensaio geral', date: '28/05/2026', time: '19:00', ministry: 'Música', priority: 'Alta' },
+      { title: 'Planejamento de culto', date: '25/05/2026', time: '19:30', ministry: 'Louvor', agendaType: 'MINISTERIAL' },
+      { title: 'Reunião de recepção', date: '26/05/2026', time: '20:00', ministry: 'Boas-vindas', agendaType: 'MINISTERIAL' },
+      { title: 'Ensaio geral', date: '28/05/2026', time: '19:00', ministry: 'Música', agendaType: 'MINISTERIAL' },
     ],
   }
 }

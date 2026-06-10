@@ -21,6 +21,7 @@ import { type EventValidationErrors, validateEventForm } from './validations/val
 type ModalMode = 'create' | 'view' | 'edit'
 
 const PAGE_SIZE = 10
+const EVENTS_QUERY_KEY = ['eventos'] as const
 
 const defaultForm: CreateEventPayload = {
   title: '',
@@ -44,21 +45,33 @@ export function EventsPage() {
   const [validationErrors, setValidationErrors] = useState<EventValidationErrors>({})
 
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery<EventsData>({ queryKey: ['eventos'], queryFn: getEventsData })
+  const { data, isLoading } = useQuery<EventsData>({
+    queryKey: [...EVENTS_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getEventsData({ page: currentPage, limit: PAGE_SIZE }),
+  })
   const canManage = hasAnyRole('ADMIN', 'SUPERADMIN')
 
-  const totalItems = data?.events.length ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const buildOptimisticEvent = (payload: CreateEventPayload, id: string): Event => {
+    const isoDate = payload.date.includes('T') ? payload.date : `${payload.date}T00:00:00.000Z`
+    const eventDate = new Date(isoDate)
+    const now = Date.now()
 
-  const paginatedEvents = useMemo(() => {
-    if (!data) {
-      return []
+    return {
+      id,
+      name: payload.title,
+      description: payload.description,
+      date: Number.isNaN(eventDate.getTime()) ? '-' : eventDate.toLocaleDateString('pt-BR'),
+      attendees: 0,
+      category: 'Igreja',
+      status: eventDate.getTime() >= now ? 'Scheduled' : 'Completed',
+      isoDate,
     }
+  }
 
-    const start = (safeCurrentPage - 1) * PAGE_SIZE
-    return data.events.slice(start, start + PAGE_SIZE)
-  }, [safeCurrentPage, data])
+  const paginatedEvents = data?.events ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const nextUpcomingEvent = useMemo(() => {
     if (!data) {
@@ -95,36 +108,111 @@ export function EventsPage() {
 
   const createMutation = useMutation({
     mutationFn: createEvent,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['eventos'] })
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: EVENTS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<EventsData>(EVENTS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticEvent(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<EventsData>(EVENTS_QUERY_KEY, {
+        ...previousData,
+        events: [optimisticItem, ...previousData.events],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(EVENTS_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedEvent(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: EVENTS_QUERY_KEY })
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CreateEventPayload }) => updateEvent(id, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['eventos'] })
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: EVENTS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<EventsData>(EVENTS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<EventsData>(EVENTS_QUERY_KEY, {
+        ...previousData,
+        events: previousData.events.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                ...buildOptimisticEvent(payload, id),
+              }
+            : item,
+        ),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(EVENTS_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedEvent(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
     },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: EVENTS_QUERY_KEY })
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteEvent,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['eventos'] })
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: EVENTS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<EventsData>(EVENTS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<EventsData>(EVENTS_QUERY_KEY, {
+        ...previousData,
+        events: previousData.events.filter((item) => item.id !== id),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(EVENTS_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setEventToDelete(null)
       setIsDeleteConfirmOpen(false)
       setOptionsMenu(null)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: EVENTS_QUERY_KEY })
     },
   })
 

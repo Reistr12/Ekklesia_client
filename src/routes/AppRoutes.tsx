@@ -50,7 +50,9 @@ export function AppRoutes() {
           <Route path="/" element={<Suspense fallback={<RouteFallback />}><DashboardPage /></Suspense>} />
           <Route path="/cultos" element={<Suspense fallback={<RouteFallback />}><ChurchServicesPage /></Suspense>} />
           <Route path="/eventos" element={<Suspense fallback={<RouteFallback />}><EventsPage /></Suspense>} />
-          <Route path="/agenda" element={<Suspense fallback={<RouteFallback />}><SchedulePage /></Suspense>} />
+          <Route path="/agenda" element={<Navigate to="/agenda/ministerial" replace />} />
+          <Route path="/agenda/ministerial" element={<Suspense fallback={<RouteFallback />}><SchedulePage /></Suspense>} />
+          <Route path="/agenda/pastor" element={<Suspense fallback={<RouteFallback />}><SchedulePage /></Suspense>} />
           <Route path="/cultos-registrados" element={<Suspense fallback={<RouteFallback />}><RecordedServicesPage /></Suspense>} />
           <Route path="/membros" element={<Suspense fallback={<RouteFallback />}><MembersPage /></Suspense>} />
           <Route path="/pessoas" element={<Suspense fallback={<RouteFallback />}><SupervisorsPage /></Suspense>} />

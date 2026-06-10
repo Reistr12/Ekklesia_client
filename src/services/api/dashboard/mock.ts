@@ -16,11 +16,6 @@ export const getDashboardData = async (): Promise<DashboardData> => {
       { month: 'Mai', value: 54 },
       { month: 'Jun', value: 58 },
     ],
-    visitors: [
-      { name: 'Ana Costa', source: 'Instagram', date: '20/05/2026', status: 'Retorno pendente' },
-      { name: 'Paulo Lima', source: 'Indicação', date: '19/05/2026', status: 'Acompanhado' },
-      { name: 'Giselle Souza', source: 'Site', date: '18/05/2026', status: 'Novo contato' },
-    ],
     upcomingEvents: [
       {
         id: '1',

@@ -6,7 +6,13 @@ import type {
   UpdateAnnouncementPayload,
   UpdateAnnouncementResponse,
 } from './types'
-import { formatDate, toArray } from '../utils'
+import {
+  formatDate,
+  normalizePaginationParams,
+  toPaginatedResponse,
+  type PaginatedResponse,
+  type PaginationParams,
+} from '../utils'
 
 type ApiAnnouncement = {
   id: string
@@ -16,18 +22,22 @@ type ApiAnnouncement = {
   deletedAt?: string
 }
 
-export const getAnnouncementsData = async (): Promise<AnnouncementsData> => {
-  const response = await apiClient.get<ApiAnnouncement[]>('/announcements')
-  const announcements = toArray<ApiAnnouncement>(response.data)
+export const getAnnouncementsData = async (params: PaginationParams = {}): Promise<AnnouncementsData> => {
+  const pagination = normalizePaginationParams(params)
+  const response = await apiClient.get<PaginatedResponse<ApiAnnouncement>>('/announcements', {
+    params: pagination,
+  })
+  const paginated = toPaginatedResponse<ApiAnnouncement>(response.data, pagination)
+  const announcements = paginated.data
   const published = announcements.filter((item) => !item.deletedAt).length
 
   return {
     metrics: [
-      { label: 'Avisos totais', value: String(announcements.length), trend: `${published} publicados` },
+      { label: 'Avisos totais', value: String(paginated.total), trend: `${published} publicados` },
       { label: 'Publicados', value: String(published), trend: 'Comunicação ativa' },
       {
         label: 'Arquivados',
-        value: String(Math.max(announcements.length - published, 0)),
+        value: String(Math.max(paginated.total - published, 0)),
         trend: 'Histórico de avisos',
       },
     ],
@@ -41,6 +51,10 @@ export const getAnnouncementsData = async (): Promise<AnnouncementsData> => {
       status: item.deletedAt ? 'Archived' : 'Published',
       isoDate: item.date,
     })),
+    total: paginated.total,
+    page: paginated.page,
+    limit: paginated.limit,
+    totalPages: paginated.totalPages,
   }
 }
 

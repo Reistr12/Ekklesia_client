@@ -21,6 +21,10 @@ export type ChurchService = {
 export type ChurchServicesData = {
   metrics: ChurchServiceMetric[]
   churchServices: ChurchService[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateChurchServicePayload = {

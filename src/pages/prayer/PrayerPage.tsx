@@ -20,6 +20,7 @@ import { type PrayerValidationErrors, validatePrayerForm } from './validations/v
 type ModalMode = 'create' | 'view' | 'edit'
 
 const PAGE_SIZE = 10
+const PRAYER_QUERY_KEY = ['oracao'] as const
 
 const defaultForm: CreatePrayerPayload = {
   name: '',
@@ -41,21 +42,25 @@ export function PrayerPage() {
   const [validationErrors, setValidationErrors] = useState<PrayerValidationErrors>({})
 
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery<PrayerData>({ queryKey: ['oracao'], queryFn: getPrayerData })
+  const { data, isLoading } = useQuery<PrayerData>({
+    queryKey: [...PRAYER_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getPrayerData({ page: currentPage, limit: PAGE_SIZE }),
+  })
   const canManage = hasAnyRole('ADMIN', 'SUPERVISOR', 'SUPERADMIN')
 
-  const totalItems = data?.prayers.length ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const buildOptimisticPrayer = (payload: CreatePrayerPayload, id: string): PrayerEntry => ({
+    id,
+    name: payload.name,
+    request: payload.request,
+    date: new Date().toLocaleDateString('pt-BR'),
+    status: 'Open',
+    createdAt: new Date().toISOString(),
+  })
 
-  const paginatedPrayers = useMemo(() => {
-    if (!data) {
-      return []
-    }
-
-    const start = (safeCurrentPage - 1) * PAGE_SIZE
-    return data.prayers.slice(start, start + PAGE_SIZE)
-  }, [safeCurrentPage, data])
+  const paginatedPrayers = data?.prayers ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const optionsTargetPrayer = useMemo(() => {
     if (!optionsMenu || !data) {
@@ -78,36 +83,111 @@ export function PrayerPage() {
 
   const createMutation = useMutation({
     mutationFn: createPrayer,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['oracao'] })
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: PRAYER_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<PrayerData>(PRAYER_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticPrayer(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<PrayerData>(PRAYER_QUERY_KEY, {
+        ...previousData,
+        prayers: [optimisticItem, ...previousData.prayers],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(PRAYER_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedPrayer(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: PRAYER_QUERY_KEY })
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CreatePrayerPayload }) => updatePrayer(id, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['oracao'] })
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: PRAYER_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<PrayerData>(PRAYER_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<PrayerData>(PRAYER_QUERY_KEY, {
+        ...previousData,
+        prayers: previousData.prayers.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                ...buildOptimisticPrayer(payload, id),
+              }
+            : item,
+        ),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(PRAYER_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedPrayer(null)
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
     },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: PRAYER_QUERY_KEY })
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deletePrayer,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['oracao'] })
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: PRAYER_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<PrayerData>(PRAYER_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<PrayerData>(PRAYER_QUERY_KEY, {
+        ...previousData,
+        prayers: previousData.prayers.filter((item) => item.id !== id),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(PRAYER_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setPrayerToDelete(null)
       setIsDeleteConfirmOpen(false)
       setOptionsMenu(null)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: PRAYER_QUERY_KEY })
     },
   })
 

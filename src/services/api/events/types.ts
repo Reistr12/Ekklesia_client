@@ -18,6 +18,10 @@ export type Event = {
 export type EventsData = {
   metrics: EventMetric[]
   events: Event[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateEventPayload = {

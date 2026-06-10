@@ -17,6 +17,10 @@ export type Member = {
 export type MembersData = {
   metrics: MemberMetric[]
   members: Member[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateMemberPayload = {

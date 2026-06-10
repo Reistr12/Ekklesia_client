@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 
@@ -18,6 +19,14 @@ const titles: Record<string, { title: string; subtitle: string }> = {
   '/agenda': {
     title: 'Agenda',
     subtitle: 'Planejamento semanal e próximos compromissos.',
+  },
+  '/agenda/ministerial': {
+    title: 'Agenda Ministerial',
+    subtitle: 'Planejamento de eventos da igreja e ministérios.',
+  },
+  '/agenda/pastor': {
+    title: 'Agenda do Pastor',
+    subtitle: 'Compromissos individuais e acompanhamento pastoral.',
   },
   '/cultos-registrados': {
     title: 'Cultos Registrados',
@@ -47,15 +56,20 @@ const titles: Record<string, { title: string; subtitle: string }> = {
 
 export function MainLayout() {
   const location = useLocation()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const current =
     titles[location.pathname] ??
     titles['/']
 
   return (
     <div className="min-h-screen bg-surface">
-      <Sidebar />
-      <main className="ml-0 min-h-screen p-4 md:ml-80 md:p-7">
-        <Header title={current.title} subtitle={current.subtitle} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <main className="ml-0 min-h-screen p-3 sm:p-4 lg:ml-80 lg:p-7">
+        <Header
+          title={current.title}
+          subtitle={current.subtitle}
+          onToggleSidebar={() => setIsSidebarOpen((state) => !state)}
+        />
         <Outlet />
       </main>
     </div>

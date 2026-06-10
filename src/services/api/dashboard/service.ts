@@ -1,6 +1,6 @@
 import { apiClient } from '../../axios/client'
 import type { DashboardData } from './types'
-import { formatDate, formatTime, toArray } from '../utils'
+import { formatDate, formatTime, toPaginatedResponse } from '../utils'
 
 type ApiMember = {
   id: string
@@ -35,18 +35,39 @@ type ApiRecord = {
 
 export const getDashboardData = async (): Promise<DashboardData> => {
   const [membersResult, eventsResult, prayersResult, announcementsResult, recordsResult] = await Promise.allSettled([
-    apiClient.get<ApiMember[]>('/members'),
-    apiClient.get<ApiChurchEvent[]>('/church-events'),
-    apiClient.get<ApiPrayer[]>('/prayer-requests'),
-    apiClient.get<ApiAnnouncement[]>('/announcements'),
-    apiClient.get<ApiRecord[]>('/church-service-records'),
+    apiClient.get('/members', { params: { page: 1, limit: 100 } }),
+    apiClient.get('/church-events', { params: { page: 1, limit: 100 } }),
+    apiClient.get('/prayer-requests', { params: { page: 1, limit: 100 } }),
+    apiClient.get('/announcements', { params: { page: 1, limit: 100 } }),
+    apiClient.get('/church-service-records', { params: { page: 1, limit: 100 } }),
   ])
 
-  const members = membersResult.status === 'fulfilled' ? toArray<ApiMember>(membersResult.value.data) : []
-  const events = eventsResult.status === 'fulfilled' ? toArray<ApiChurchEvent>(eventsResult.value.data) : []
-  const prayers = prayersResult.status === 'fulfilled' ? toArray<ApiPrayer>(prayersResult.value.data) : []
-  const announcements = announcementsResult.status === 'fulfilled' ? toArray<ApiAnnouncement>(announcementsResult.value.data) : []
-  const records = recordsResult.status === 'fulfilled' ? toArray<ApiRecord>(recordsResult.value.data) : []
+  const membersPaginated =
+    membersResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiMember>(membersResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+  const eventsPaginated =
+    eventsResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiChurchEvent>(eventsResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+  const prayersPaginated =
+    prayersResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiPrayer>(prayersResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+  const announcementsPaginated =
+    announcementsResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiAnnouncement>(announcementsResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+  const recordsPaginated =
+    recordsResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiRecord>(recordsResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+
+  const members = membersPaginated.data
+  const events = eventsPaginated.data
+  const prayers = prayersPaginated.data
+  const announcements = announcementsPaginated.data
+  const records = recordsPaginated.data
 
   const degradedSources = [
     membersResult.status === 'rejected' ? 'membros' : null,
@@ -88,12 +109,10 @@ export const getDashboardData = async (): Promise<DashboardData> => {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3)
 
-  let runningTotal = 0
   const growthByMonth = Array.from({ length: 6 }).map((_, index) => {
     const monthDate = new Date()
     monthDate.setMonth(monthDate.getMonth() - (5 - index))
 
-    const startOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1, 0, 0, 0, 0)
     const endOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999)
 
     const month = monthDate.toLocaleDateString('pt-BR', { month: 'short' })
@@ -103,12 +122,10 @@ export const getDashboardData = async (): Promise<DashboardData> => {
         return false
       }
 
-      // Série acumulada: total de membros existentes até o fim do mês.
-      return createdAt >= startOfMonth && createdAt <= endOfMonth
+      return createdAt <= endOfMonth
     }).length
 
-    runningTotal += value
-    return { month, value: runningTotal }
+    return { month, value }
   })
 
   const activities = [
@@ -134,18 +151,12 @@ export const getDashboardData = async (): Promise<DashboardData> => {
 
   return {
     metrics: [
-      { label: 'Membros', value: String(members.length), trend: `+${newMembersThisMonth} no mês` },
-      { label: 'Próximos eventos', value: String(upcomingEvents.length), trend: 'Calendário atualizado' },
-      { label: 'Pedidos de oração', value: String(prayers.length), trend: 'Intercessão ativa' },
-      { label: 'Registros de culto', value: String(records.length), trend: 'Base histórica' },
+      { label: 'Membros', value: String(membersPaginated.total), trend: `+${newMembersThisMonth} no mês` },
+      { label: 'Próximos eventos', value: String(eventsPaginated.total), trend: 'Calendário atualizado' },
+      { label: 'Pedidos de oração', value: String(prayersPaginated.total), trend: 'Intercessão ativa' },
+      { label: 'Registros de culto', value: String(recordsPaginated.total), trend: 'Base histórica' },
     ],
     growth: growthByMonth,
-    visitors: members.slice(0, 3).map((member) => ({
-      name: member.name,
-      source: 'Cadastro de membro',
-      date: formatDate(member.createdAt),
-      status: 'Ativo',
-    })),
     upcomingEvents: upcomingEvents.map((event) => ({
       id: event.id,
       title: event.title,

@@ -1,5 +1,5 @@
 import { apiClient } from '../../axios/client'
-import { formatDate, toArray } from '../utils'
+import { formatDate } from '../utils'
 import type {
   CreateEventPayload,
   CreateEventResponse,
@@ -7,6 +7,12 @@ import type {
   UpdateEventPayload,
   UpdateEventResponse,
 } from './types'
+import {
+  normalizePaginationParams,
+  toPaginatedResponse,
+  type PaginatedResponse,
+  type PaginationParams,
+} from '../utils'
 
 type ApiChurchEvent = {
   id: string
@@ -15,19 +21,23 @@ type ApiChurchEvent = {
   date: string
 }
 
-export const getEventsData = async (): Promise<EventsData> => {
-  const response = await apiClient.get<ApiChurchEvent[]>('/church-events')
-  const events = toArray<ApiChurchEvent>(response.data)
+export const getEventsData = async (params: PaginationParams = {}): Promise<EventsData> => {
+  const pagination = normalizePaginationParams(params)
+  const response = await apiClient.get<PaginatedResponse<ApiChurchEvent>>('/church-events', {
+    params: pagination,
+  })
+  const paginated = toPaginatedResponse<ApiChurchEvent>(response.data, pagination)
+  const events = paginated.data
   const now = Date.now()
   const upcoming = events.filter((item) => new Date(item.date).getTime() >= now).length
 
   return {
     metrics: [
-      { label: 'Eventos cadastrados', value: String(events.length), trend: `${upcoming} futuros` },
+      { label: 'Eventos cadastrados', value: String(paginated.total), trend: `${upcoming} futuros` },
       { label: 'Próximos eventos', value: String(upcoming), trend: 'Calendário ativo' },
       {
         label: 'Concluídos',
-        value: String(Math.max(events.length - upcoming, 0)),
+        value: String(Math.max(paginated.total - upcoming, 0)),
         trend: 'Histórico consolidado',
       },
     ],
@@ -41,6 +51,10 @@ export const getEventsData = async (): Promise<EventsData> => {
       status: new Date(item.date).getTime() >= now ? 'Scheduled' : 'Completed',
       isoDate: item.date,
     })),
+    total: paginated.total,
+    page: paginated.page,
+    limit: paginated.limit,
+    totalPages: paginated.totalPages,
   }
 }
 

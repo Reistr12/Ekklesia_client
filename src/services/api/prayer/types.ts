@@ -16,6 +16,10 @@ export type PrayerEntry = {
 export type PrayerData = {
   metrics: PrayerMetric[]
   prayers: PrayerEntry[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreatePrayerPayload = {

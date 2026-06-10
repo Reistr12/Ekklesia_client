@@ -8,8 +8,10 @@ import { Table } from '../../components/tables/Table'
 import { CreateUpdateModal } from '../../components/ui/CreateUpdateModal'
 import { SectionHeaderAction } from '../../components/ui/SectionHeaderAction'
 import { StatCard } from '../../components/ui/StatCard'
+import { PaginationBar } from '../../components/ui/PaginationBar'
 import { createSupervisor, getSupervisorsData } from '../../services/api/supervisors'
-import type { CreateSupervisorPayload, SupervisorsData } from '../../services/api/supervisors/types'
+import type { CreateSupervisorPayload, Supervisor, SupervisorsData } from '../../services/api/supervisors/types'
+import { maskPhoneBr } from '../../services/mask/phone-mask'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
 import {
@@ -24,9 +26,12 @@ const initialForm: CreateSupervisorPayload = {
   password: '',
   role: 'SUPERVISOR',
 }
+const SUPERVISORS_QUERY_KEY = ['supervisores'] as const
+const PAGE_SIZE = 10
 
 export function SupervisorsPage() {
   const canCreateAdmin = false
+  const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form, setForm] = useState<CreateSupervisorPayload>(initialForm)
   const [submitError, setSubmitError] = useState<ApiErrorDisplay | null>(null)
@@ -34,25 +39,60 @@ export function SupervisorsPage() {
 
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<SupervisorsData>({
-    queryKey: ['supervisores'],
-    queryFn: getSupervisorsData,
+    queryKey: [...SUPERVISORS_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getSupervisorsData({ page: currentPage, limit: PAGE_SIZE }),
   })
 
   const canManage = hasAnyRole('ADMIN')
 
+  const buildOptimisticSupervisor = (payload: CreateSupervisorPayload, id: string): Supervisor => ({
+    id,
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone,
+    role: payload.role,
+  })
+
   const createMutation = useMutation({
     mutationFn: createSupervisor,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['supervisores'] })
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: SUPERVISORS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<SupervisorsData>(SUPERVISORS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticSupervisor(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<SupervisorsData>(SUPERVISORS_QUERY_KEY, {
+        ...previousData,
+        supervisors: [optimisticItem, ...previousData.supervisors],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(SUPERVISORS_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setForm(initialForm)
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: SUPERVISORS_QUERY_KEY })
     },
   })
 
   const isSubmitting = createMutation.isPending
 
   const supervisors = useMemo(() => data?.supervisors ?? [], [data])
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const handleSubmit = async () => {
     const formErrors = validateSupervisorForm(form)
@@ -133,15 +173,27 @@ export function SupervisorsPage() {
             description="Cadastre a primeira pessoa para começar o gerenciamento."
           />
         ) : (
-          <Table
-            data={supervisors}
-            columns={[
-              { key: 'name', title: 'Nome' },
-              { key: 'email', title: 'Email' },
-              { key: 'phone', title: 'Telefone' },
-              { key: 'role', title: 'Perfil' },
-            ]}
-          />
+          <>
+            <Table
+              data={supervisors}
+              columns={[
+                { key: 'name', title: 'Nome' },
+                { key: 'email', title: 'Email' },
+                { key: 'phone', title: 'Telefone' },
+                { key: 'role', title: 'Perfil' },
+              ]}
+            />
+
+            <PaginationBar
+              currentPage={safeCurrentPage}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+              totalItems={totalItems}
+              currentItems={supervisors.length}
+              onPrev={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+              onNext={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+            />
+          </>
         )}
       </section>
 
@@ -200,7 +252,7 @@ export function SupervisorsPage() {
               id="supervisor-phone"
               value={form.phone}
               onChange={(event) => {
-                setForm((state) => ({ ...state, phone: event.target.value }))
+                setForm((state) => ({ ...state, phone: maskPhoneBr(event.target.value) }))
                 setValidationErrors((current) => ({ ...current, phone: undefined }))
               }}
               className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}

@@ -9,7 +9,7 @@ export type ScheduleItem = {
   date: string
   time: string
   ministry: string
-  priority: string
+  agendaType: 'MINISTERIAL' | 'PASTOR'
 }
 
 export type ScheduleData = {

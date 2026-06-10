@@ -31,6 +31,17 @@ import {
 
 type ModalMode = 'create' | 'view' | 'edit'
 const PAGE_SIZE = 10
+const CHURCH_SERVICES_QUERY_KEY = ['cultos'] as const
+
+const dayLabels: Record<CreateChurchServicePayload['day'], string> = {
+  SUNDAY: 'Domingo',
+  MONDAY: 'Segunda-feira',
+  TUESDAY: 'Terça-feira',
+  WEDNESDAY: 'Quarta-feira',
+  THURSDAY: 'Quinta-feira',
+  FRIDAY: 'Sexta-feira',
+  SATURDAY: 'Sábado',
+}
 
 const defaultForm: CreateChurchServicePayload = {
   title: '',
@@ -61,21 +72,30 @@ export function ChurchServicesPage() {
   const [validationErrors, setValidationErrors] = useState<ChurchServiceValidationErrors>({})
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery<ChurchServicesData>({ queryKey: ['cultos'], queryFn: getChurchServicesData })
+  const { data, isLoading } = useQuery<ChurchServicesData>({
+    queryKey: [...CHURCH_SERVICES_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getChurchServicesData({ page: currentPage, limit: PAGE_SIZE }),
+  })
   const canManageChurchServices = isChurchAdmin()
 
-  const totalItems = data?.churchServices.length ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const buildOptimisticChurchService = (payload: CreateChurchServicePayload, id: string): ChurchService => ({
+    id,
+    name: payload.title,
+    description: payload.description,
+    date: dayLabels[payload.day],
+    time: `${payload.startsAt} - ${payload.endsAt}`,
+    day: dayLabels[payload.day],
+    dayCode: payload.day,
+    startsAt: payload.startsAt,
+    endsAt: payload.endsAt,
+    isOnline: payload.isOnline,
+    streamUrl: payload.streamUrl,
+  })
 
-  const paginatedChurchServices = useMemo(() => {
-    if (!data) {
-      return []
-    }
-
-    const start = (safeCurrentPage - 1) * PAGE_SIZE
-    return data.churchServices.slice(start, start + PAGE_SIZE)
-  }, [safeCurrentPage, data])
+  const paginatedChurchServices = data?.churchServices ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const optionsTargetService = useMemo(() => {
     if (!optionsMenu || !data) {
@@ -106,33 +126,105 @@ export function ChurchServicesPage() {
 
   const createChurchServiceMutation = useMutation({
     mutationFn: createChurchService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos'] })
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticChurchService(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY, {
+        ...previousData,
+        churchServices: [optimisticItem, ...previousData.churchServices],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(CHURCH_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       resetForm()
       setSelectedService(null)
       setModalMode('create')
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
     },
   })
 
   const updateChurchServiceMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CreateChurchServicePayload }) =>
       updateChurchService(id, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos'] })
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY, {
+        ...previousData,
+        churchServices: previousData.churchServices.map((service) =>
+          service.id === id
+            ? {
+                ...service,
+                ...buildOptimisticChurchService(payload, id),
+              }
+            : service,
+        ),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(CHURCH_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedService(null)
       resetForm()
       setModalMode('create')
       setIsModalOpen(false)
     },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
+    },
   })
 
   const deleteChurchServiceMutation = useMutation({
     mutationFn: deleteChurchService,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cultos'] })
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<ChurchServicesData>(CHURCH_SERVICES_QUERY_KEY, {
+        ...previousData,
+        churchServices: previousData.churchServices.filter((service) => service.id !== id),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(CHURCH_SERVICES_QUERY_KEY, context.previousData)
+      }
+    },
+    onSuccess: () => {
       setSubmitError(null)
       setSelectedService(null)
       setServiceToDelete(null)
@@ -140,6 +232,9 @@ export function ChurchServicesPage() {
       resetForm()
       setModalMode('create')
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: CHURCH_SERVICES_QUERY_KEY })
     },
   })
 

@@ -9,13 +9,6 @@ export type GrowthPoint = {
   value: number
 }
 
-export type RecentVisitor = {
-  name: string
-  source: string
-  date: string
-  status: string
-}
-
 export type UpcomingEvent = {
   id: string
   title: string
@@ -38,7 +31,6 @@ export type Activity = {
 export type DashboardData = {
   metrics: DashboardMetric[]
   growth: GrowthPoint[]
-  visitors: RecentVisitor[]
   upcomingEvents: UpcomingEvent[]
   prayerRequests: PrayerRequest[]
   activities: Activity[]

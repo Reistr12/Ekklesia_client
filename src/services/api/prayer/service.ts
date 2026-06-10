@@ -6,7 +6,13 @@ import type {
   UpdatePrayerPayload,
   UpdatePrayerResponse,
 } from './types'
-import { formatDate, toArray } from '../utils'
+import {
+  formatDate,
+  normalizePaginationParams,
+  toPaginatedResponse,
+  type PaginatedResponse,
+  type PaginationParams,
+} from '../utils'
 
 type ApiPrayer = {
   id: string
@@ -16,18 +22,22 @@ type ApiPrayer = {
   deletedAt?: string
 }
 
-export const getPrayerData = async (): Promise<PrayerData> => {
-  const response = await apiClient.get<ApiPrayer[]>('/prayer-requests')
-  const prayers = toArray<ApiPrayer>(response.data)
+export const getPrayerData = async (params: PaginationParams = {}): Promise<PrayerData> => {
+  const pagination = normalizePaginationParams(params)
+  const response = await apiClient.get<PaginatedResponse<ApiPrayer>>('/prayer-requests', {
+    params: pagination,
+  })
+  const paginated = toPaginatedResponse<ApiPrayer>(response.data, pagination)
+  const prayers = paginated.data
   const open = prayers.filter((item) => !item.deletedAt).length
 
   return {
     metrics: [
-      { label: 'Pedidos totais', value: String(prayers.length), trend: `${open} abertos` },
+      { label: 'Pedidos totais', value: String(paginated.total), trend: `${open} abertos` },
       { label: 'Abertos', value: String(open), trend: 'Intercessão em andamento' },
       {
         label: 'Finalizados',
-        value: String(Math.max(prayers.length - open, 0)),
+        value: String(Math.max(paginated.total - open, 0)),
         trend: 'Pedidos concluídos',
       },
     ],
@@ -39,6 +49,10 @@ export const getPrayerData = async (): Promise<PrayerData> => {
       status: item.deletedAt ? 'Closed' : 'Open',
       createdAt: item.createdAt,
     })),
+    total: paginated.total,
+    page: paginated.page,
+    limit: paginated.limit,
+    totalPages: paginated.totalPages,
   }
 }
 

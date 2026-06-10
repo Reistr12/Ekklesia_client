@@ -1,7 +1,6 @@
 import {
   Bell,
   BookOpen,
-  CalendarDays,
   CalendarFold,
   Church,
   Cog,
@@ -22,13 +21,27 @@ export const churchGroup: SidebarGroupData = {
   icon: Church,
   items: [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { label: 'Cultos', path: '/cultos', icon: BookOpen },
-    { label: 'Eventos', path: '/eventos', icon: CalendarDays },
-    { label: 'Agenda', path: '/agenda', icon: CalendarFold },
     {
-      label: 'Cultos Registrados',
-      path: '/cultos-registrados',
-      icon: NotebookTabs,
+      label: 'Cultos',
+      path: '/cultos',
+      icon: BookOpen,
+      children: [
+        { label: 'Programação de Cultos', path: '/cultos', icon: BookOpen },
+        {
+          label: 'Cultos Registrados',
+          path: '/cultos-registrados',
+          icon: NotebookTabs,
+        },
+      ],
+    },
+    {
+      label: 'Agenda',
+      path: '/agenda/ministerial',
+      icon: CalendarFold,
+      children: [
+        { label: 'Agenda Ministerial', path: '/agenda/ministerial', icon: CalendarFold },
+        { label: 'Agenda do Pastor', path: '/agenda/pastor', icon: CalendarFold },
+      ],
     },
   ],
 }

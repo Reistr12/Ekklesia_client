@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { EmptyState } from '../../components/feedback/EmptyState'
 import { LoadingCard } from '../../components/feedback/LoadingCard'
 import { Table } from '../../components/tables/Table'
@@ -18,11 +19,16 @@ export function SchedulePage() {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [ministry, setMinistry] = useState('')
-  const [priority, setPriority] = useState('')
   const [validationErrors, setValidationErrors] = useState<ScheduleValidationErrors>({})
+  const location = useLocation()
+  const isPastorAgenda = location.pathname === '/agenda/pastor'
 
   const { data, isLoading } = useQuery<ScheduleData>({ queryKey: ['agenda'], queryFn: getScheduleData })
   const canManage = isChurchAdmin()
+
+  const filteredItems = (data?.items ?? []).filter((item) =>
+    isPastorAgenda ? item.agendaType === 'PASTOR' : item.agendaType === 'MINISTERIAL',
+  )
 
   if (isLoading) {
     return (
@@ -48,7 +54,16 @@ export function SchedulePage() {
 
       <section>
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-          <PageTitle title="Compromissos" description="Agenda estratégica por ministério" />
+          <div className="space-y-2">
+            <PageTitle
+              title={isPastorAgenda ? 'Agenda do pastor' : 'Agenda ministerial'}
+              description={
+                isPastorAgenda
+                  ? 'Compromissos individuais do pastor.'
+                  : 'Eventos e compromissos da igreja.'
+              }
+            />
+          </div>
           {canManage ? (
             <button
               type="button"
@@ -63,14 +78,13 @@ export function SchedulePage() {
             </button>
           ) : null}
         </div>
+
         <Table
-          data={data.items}
+          data={filteredItems}
           columns={[
             { key: 'title', title: 'Título' },
             { key: 'date', title: 'Data' },
             { key: 'time', title: 'Hora' },
-            { key: 'ministry', title: 'Ministério' },
-            { key: 'priority', title: 'Prioridade' },
           ]}
         />
       </section>
@@ -84,7 +98,7 @@ export function SchedulePage() {
           setIsModalOpen(false)
         }}
         onSubmit={async () => {
-          const formErrors = validateScheduleForm({ title, date, time, ministry, priority })
+          const formErrors = validateScheduleForm({ title, date, time, ministry })
           if (Object.keys(formErrors).length > 0) {
             setValidationErrors(formErrors)
             return
@@ -110,16 +124,6 @@ export function SchedulePage() {
             <label htmlFor="schedule-time" className="text-sm font-medium text-slate-700">Hora</label>
             <input id="schedule-time" type="time" value={time} onChange={(event) => { setTime(event.target.value); setValidationErrors((current) => ({ ...current, time: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.time ? 'border-rose-400' : 'border-slate-200'}`} required />
             {validationErrors.time ? <p className="text-xs text-rose-600">{validationErrors.time}</p> : null}
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="schedule-ministry" className="text-sm font-medium text-slate-700">Ministério</label>
-            <input id="schedule-ministry" value={ministry} onChange={(event) => { setMinistry(event.target.value); setValidationErrors((current) => ({ ...current, ministry: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.ministry ? 'border-rose-400' : 'border-slate-200'}`} required />
-            {validationErrors.ministry ? <p className="text-xs text-rose-600">{validationErrors.ministry}</p> : null}
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="schedule-priority" className="text-sm font-medium text-slate-700">Prioridade</label>
-            <input id="schedule-priority" value={priority} onChange={(event) => { setPriority(event.target.value); setValidationErrors((current) => ({ ...current, priority: undefined })) }} className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.priority ? 'border-rose-400' : 'border-slate-200'}`} required />
-            {validationErrors.priority ? <p className="text-xs text-rose-600">{validationErrors.priority}</p> : null}
           </div>
         </div>
       </CreateUpdateModal>

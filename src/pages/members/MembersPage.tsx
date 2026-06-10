@@ -13,6 +13,7 @@ import { SectionHeaderAction } from '../../components/ui/SectionHeaderAction'
 import { StatCard } from '../../components/ui/StatCard'
 import { createMember, deleteMember, getMembersData, updateMember } from '../../services/api/members'
 import type { CreateMemberPayload, Member, MembersData } from '../../services/api/members/types'
+import { maskPhoneBr } from '../../services/mask/phone-mask'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { hasAnyRole } from '../../utils/auth'
 import { type MemberValidationErrors, validateMemberForm } from './validations/validation'
@@ -20,6 +21,7 @@ import { type MemberValidationErrors, validateMemberForm } from './validations/v
 type ModalMode = 'create' | 'view' | 'edit'
 
 const PAGE_SIZE = 10
+const MEMBERS_QUERY_KEY = ['membros'] as const
 
 const defaultForm: CreateMemberPayload = {
   name: '',
@@ -43,21 +45,30 @@ export function MembersPage() {
   const [validationErrors, setValidationErrors] = useState<MemberValidationErrors>({})
 
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery<MembersData>({ queryKey: ['membros'], queryFn: getMembersData })
+  const { data, isLoading } = useQuery<MembersData>({
+    queryKey: [...MEMBERS_QUERY_KEY, currentPage, PAGE_SIZE],
+    queryFn: () => getMembersData({ page: currentPage, limit: PAGE_SIZE }),
+  })
   const canManage = hasAnyRole('ADMIN', 'SUPERVISOR', 'SUPERADMIN')
 
-  const totalItems = data?.members.length ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const buildOptimisticMember = (payload: CreateMemberPayload, id: string): Member => {
+    const birthDate = new Date(payload.dateOfBirth)
 
-  const paginatedMembers = useMemo(() => {
-    if (!data) {
-      return []
+    return {
+      id,
+      name: payload.name,
+      phone: payload.phone ?? '-',
+      dateOfBirth: Number.isNaN(birthDate.getTime()) ? '-' : birthDate.toLocaleDateString('pt-BR'),
+      dateOfBirthIso: payload.dateOfBirth,
+      contact: payload.phone ?? '-',
+      status: 'New',
     }
+  }
 
-    const start = (safeCurrentPage - 1) * PAGE_SIZE
-    return data.members.slice(start, start + PAGE_SIZE)
-  }, [safeCurrentPage, data])
+  const paginatedMembers = data?.members ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const safeCurrentPage = data?.page ?? currentPage
 
   const optionsTargetMember = useMemo(() => {
     if (!optionsMenu || !data) {
@@ -82,9 +93,30 @@ export function MembersPage() {
 
   const createMutation = useMutation({
     mutationFn: createMember,
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: MEMBERS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<MembersData>(MEMBERS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      const optimisticItem = buildOptimisticMember(payload, `optimistic-${crypto.randomUUID()}`)
+
+      queryClient.setQueryData<MembersData>(MEMBERS_QUERY_KEY, {
+        ...previousData,
+        members: [optimisticItem, ...previousData.members],
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(MEMBERS_QUERY_KEY, context.previousData)
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['membros'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       ])
@@ -93,14 +125,43 @@ export function MembersPage() {
       setModalMode('create')
       resetForm()
       setIsModalOpen(false)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY })
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: CreateMemberPayload }) => updateMember(id, payload),
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: MEMBERS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<MembersData>(MEMBERS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<MembersData>(MEMBERS_QUERY_KEY, {
+        ...previousData,
+        members: previousData.members.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                ...buildOptimisticMember(payload, id),
+              }
+            : item,
+        ),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(MEMBERS_QUERY_KEY, context.previousData)
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['membros'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       ])
@@ -110,13 +171,35 @@ export function MembersPage() {
       resetForm()
       setIsModalOpen(false)
     },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY })
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteMember,
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: MEMBERS_QUERY_KEY })
+
+      const previousData = queryClient.getQueryData<MembersData>(MEMBERS_QUERY_KEY)
+      if (!previousData) {
+        return { previousData }
+      }
+
+      queryClient.setQueryData<MembersData>(MEMBERS_QUERY_KEY, {
+        ...previousData,
+        members: previousData.members.filter((item) => item.id !== id),
+      })
+
+      return { previousData }
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(MEMBERS_QUERY_KEY, context.previousData)
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['membros'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       ])
@@ -124,6 +207,9 @@ export function MembersPage() {
       setMemberToDelete(null)
       setIsDeleteConfirmOpen(false)
       setOptionsMenu(null)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY })
     },
   })
 
@@ -377,7 +463,7 @@ export function MembersPage() {
               id="member-phone"
               value={phone}
               onChange={(event) => {
-                setPhone(event.target.value)
+                setPhone(maskPhoneBr(event.target.value))
                 setValidationErrors((current) => ({ ...current, phone: undefined }))
               }}
               className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:border-brand-600 ${validationErrors.phone ? 'border-rose-400' : 'border-slate-200'}`}

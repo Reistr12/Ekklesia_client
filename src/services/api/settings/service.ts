@@ -1,6 +1,6 @@
 import { apiClient } from '../../axios/client'
 import type { SettingsData } from './types'
-import { formatDate, toArray } from '../utils'
+import { formatDate, toPaginatedResponse } from '../utils'
 
 type ApiChurchProfile = {
   id: string
@@ -16,11 +16,15 @@ type ApiUser = {
 export const getSettingsData = async (): Promise<SettingsData> => {
   const [profileResult, usersResult] = await Promise.allSettled([
     apiClient.get<ApiChurchProfile>('/church-profile'),
-    apiClient.get<ApiUser[]>('/users'),
+    apiClient.get('/users', { params: { page: 1, limit: 100 } }),
   ])
 
   const churchProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : null
-  const users = usersResult.status === 'fulfilled' ? toArray<ApiUser>(usersResult.value.data) : []
+  const usersPaginated =
+    usersResult.status === 'fulfilled'
+      ? toPaginatedResponse<ApiUser>(usersResult.value.data, { page: 1, limit: 100 })
+      : { data: [], total: 0, page: 1, limit: 100, totalPages: 1 }
+  const users = usersPaginated.data
   const adminUsers = users.filter((user) => user.role?.toUpperCase() === 'ADMIN').length
   const degradedSources = [
     profileResult.status === 'rejected' ? 'perfil da igreja' : null,
@@ -30,7 +34,7 @@ export const getSettingsData = async (): Promise<SettingsData> => {
   return {
     metrics: [
       { label: 'Usuários administrativos', value: String(adminUsers), trend: 'Controle de acesso' },
-      { label: 'Usuários totais', value: String(users.length), trend: 'Equipe cadastrada' },
+      { label: 'Usuários totais', value: String(usersPaginated.total), trend: 'Equipe cadastrada' },
       { label: 'Perfil da igreja', value: churchProfile?.name ?? 'Não configurado', trend: 'Dados institucionais' },
     ],
     settings: [

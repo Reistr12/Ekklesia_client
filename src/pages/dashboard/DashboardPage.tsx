@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { LoadingCard } from '../../components/feedback/LoadingCard'
 import { BarMiniChart } from '../../components/charts/BarMiniChart'
 import { EmptyState } from '../../components/feedback/EmptyState'
-import { Table } from '../../components/tables/Table'
 import { PageTitle } from '../../components/ui/PageTitle'
 import { StatCard } from '../../components/ui/StatCard'
 import { getDashboardData } from '../../services/api/dashboard'
@@ -92,20 +91,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-2">
-        <div>
-          <PageTitle title="Visitantes recentes" description="Acompanhamento de novos contatos" />
-          <Table
-            data={data.visitors}
-            columns={[
-              { key: 'name', title: 'Nome' },
-              { key: 'source', title: 'Origem' },
-              { key: 'date', title: 'Data' },
-              { key: 'status', title: 'Status' },
-            ]}
-          />
-        </div>
-
+      <section>
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <PageTitle title="Pedidos de oração" description="Demandas ativas de intercessão" />

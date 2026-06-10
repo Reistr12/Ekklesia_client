@@ -18,6 +18,10 @@ export type Announcement = {
 export type AnnouncementsData = {
   metrics: AnnouncementMetric[]
   announcements: Announcement[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateAnnouncementPayload = {

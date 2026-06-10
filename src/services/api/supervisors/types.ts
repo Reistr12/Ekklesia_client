@@ -15,6 +15,10 @@ export type Supervisor = {
 export type SupervisorsData = {
   metrics: SupervisorMetric[]
   supervisors: Supervisor[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type CreateSupervisorPayload = {

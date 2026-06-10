@@ -6,7 +6,12 @@ import type {
   UpdateChurchServicePayload,
   UpdateChurchServiceResponse,
 } from './types'
-import { toArray } from '../utils'
+import {
+  normalizePaginationParams,
+  toPaginatedResponse,
+  type PaginatedResponse,
+  type PaginationParams,
+} from '../utils'
 
 type ApiChurchService = {
   id: string
@@ -29,19 +34,25 @@ const dayLabels: Record<string, string> = {
   SATURDAY: 'Sábado',
 }
 
-export const getChurchServicesData = async (): Promise<ChurchServicesData> => {
-  const response = await apiClient.get<ApiChurchService[]>('/church-services')
-  const churchServices = toArray<ApiChurchService>(response.data)
+export const getChurchServicesData = async (
+  params: PaginationParams = {},
+): Promise<ChurchServicesData> => {
+  const pagination = normalizePaginationParams(params)
+  const response = await apiClient.get<PaginatedResponse<ApiChurchService>>('/church-services', {
+    params: pagination,
+  })
+  const paginated = toPaginatedResponse<ApiChurchService>(response.data, pagination)
+  const churchServices = paginated.data
 
   const onlineCount = churchServices.filter((item) => item.isOnline).length
 
   return {
     metrics: [
-      { label: 'Cultos cadastrados', value: String(churchServices.length), trend: 'Atualizado em tempo real' },
+      { label: 'Cultos cadastrados', value: String(paginated.total), trend: 'Atualizado em tempo real' },
       { label: 'Cultos online', value: String(onlineCount), trend: `${onlineCount} transmissões ativas` },
       {
         label: 'Cultos presenciais',
-        value: String(Math.max(churchServices.length - onlineCount, 0)),
+        value: String(Math.max(paginated.total - onlineCount, 0)),
         trend: 'Programação da igreja',
       },
     ],
@@ -58,6 +69,10 @@ export const getChurchServicesData = async (): Promise<ChurchServicesData> => {
       isOnline: item.isOnline,
       streamUrl: item.streamUrl ?? undefined,
     })),
+    total: paginated.total,
+    page: paginated.page,
+    limit: paginated.limit,
+    totalPages: paginated.totalPages,
   }
 }
 

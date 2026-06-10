@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ErrorAlert } from '../../components/feedback/ErrorAlert'
 import { login, register } from '../../services/api/auth'
 import type { LoginPayload, RegisterPayload } from '../../services/api/auth/types'
+import { maskCnpj } from '../../services/mask/cnpj-mask'
+import { maskPhoneBr } from '../../services/mask/phone-mask'
 import { parseApiError, type ApiErrorDisplay } from '../../utils/apiError'
 import { clearRefreshToken, setAccessToken, setRefreshToken } from '../../utils/auth'
 
@@ -245,7 +247,7 @@ export function AuthPage() {
                       id="register-cnpj"
                       type="text"
                       value={registerData.cnpj}
-                      onChange={(event) => setRegisterData((previous) => ({ ...previous, cnpj: event.target.value }))}
+                      onChange={(event) => setRegisterData((previous) => ({ ...previous, cnpj: maskCnpj(event.target.value) }))}
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
                       placeholder="00.000.000/0000-00"
                       required
@@ -260,7 +262,7 @@ export function AuthPage() {
                       id="register-phone"
                       type="text"
                       value={registerData.phone}
-                      onChange={(event) => setRegisterData((previous) => ({ ...previous, phone: event.target.value }))}
+                      onChange={(event) => setRegisterData((previous) => ({ ...previous, phone: maskPhoneBr(event.target.value) }))}
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-600"
                       placeholder="(11) 99999-9999"
                       required

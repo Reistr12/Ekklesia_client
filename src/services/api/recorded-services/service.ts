@@ -6,19 +6,32 @@ import type {
   UpdateRecordedServicePayload,
   UpdateRecordedServiceResponse,
 } from './types'
-import { formatDate, toArray } from '../utils'
+import {
+  formatDate,
+  normalizePaginationParams,
+  toPaginatedResponse,
+  type PaginatedResponse,
+  type PaginationParams,
+} from '../utils'
 
 type ApiRecordedService = {
   id: string
+  serviceId: string
   preacher: string
   topic: string
   notes?: string
   date: string
 }
 
-export const getRecordedServicesData = async (): Promise<RecordedServicesData> => {
-  const response = await apiClient.get<ApiRecordedService[]>('/church-service-records')
-  const records = toArray<ApiRecordedService>(response.data)
+export const getRecordedServicesData = async (
+  params: PaginationParams = {},
+): Promise<RecordedServicesData> => {
+  const pagination = normalizePaginationParams(params)
+  const response = await apiClient.get<PaginatedResponse<ApiRecordedService>>('/church-service-records', {
+    params: pagination,
+  })
+  const paginated = toPaginatedResponse<ApiRecordedService>(response.data, pagination)
+  const records = paginated.data
   const thisMonth = records.filter((item) => {
     const date = new Date(item.date)
     const now = new Date()
@@ -27,12 +40,13 @@ export const getRecordedServicesData = async (): Promise<RecordedServicesData> =
 
   return {
     metrics: [
-      { label: 'Registros totais', value: String(records.length), trend: 'Histórico de cultos' },
+      { label: 'Registros totais', value: String(paginated.total), trend: 'Histórico de cultos' },
       { label: 'No mês', value: String(thisMonth), trend: 'Registro mensal' },
       { label: 'Com pregador', value: String(records.filter((item) => Boolean(item.preacher)).length), trend: 'Dados completos' },
     ],
     recordedServices: records.map((item) => ({
       id: item.id,
+      serviceId: item.serviceId,
       date: formatDate(item.date),
       isoDate: item.date,
       theme: item.topic,
@@ -41,6 +55,10 @@ export const getRecordedServicesData = async (): Promise<RecordedServicesData> =
       visitors: 0,
       notes: item.notes,
     })),
+    total: paginated.total,
+    page: paginated.page,
+    limit: paginated.limit,
+    totalPages: paginated.totalPages,
   }
 }
 
